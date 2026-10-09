@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Environment variables and secrets
+.env
+.env.*
+
+# macOS
+.DS_Store
+
+# Generated data
+data/raw/*
+data/processed/*
+
+# Python cache
+__pycache__/
+*.py[cod]

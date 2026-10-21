@@ -1,5 +1,8 @@
 from app.retrieval.retriever import Retriever
-from app.reranking.reranker import build_rerank_prompt
+from app.reranking.reranker import (
+    build_rerank_prompt,
+    parse_rerank_index,
+)
 from app.generation.llm import LLM
 
 
@@ -48,7 +51,13 @@ for data in evaluation_data:
 
     print("Reranker answer:", repr(rerank_answer))
 
-    index = int(rerank_answer) - 1
+    index = parse_rerank_index(rerank_answer, len(result))
+
+    rerank_valid = index is not None
+
+    if not rerank_valid:
+        print("Invalid reranker output. Using top retrieval result.")
+        index = 0
 
     print("Selected index:", index)
 
@@ -56,7 +65,7 @@ for data in evaluation_data:
 
 
     print("Selected page:", result[index]["metadata"]["page"])
-    if result[index]["metadata"]["page"] == data["expected_page"]:
+    if rerank_valid and result[index]["metadata"]["page"] == data["expected_page"]:
         correct += 1
     print("Selected chunk:", result[index]["metadata"]["chunk"])
     print("----- SELECTED TEXT -----")

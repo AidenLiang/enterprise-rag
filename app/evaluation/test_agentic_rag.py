@@ -154,19 +154,57 @@ for data in evaluation_data:
     ):
         rerank_correct += 1
 
-    # 3. Generate an answer from the selected document
+
+    # 3. Generate using the same evidence set as RAG.ask()
+    generation_results = [selected_result] + [
+        result
+        for i, result in enumerate(results)
+        if i != index
+    ]
+
+    context_parts = []
+
+    for i, item in enumerate(generation_results, start=1):
+        metadata = item.get("metadata") or {}
+
+        context_parts.append(
+            f"[Evidence {i} | Page {metadata.get('page')} "
+            f"| Chunk {metadata.get('chunk')}]\n"
+            f"{item['text']}"
+        )
+
+    generation_context = "\n\n".join(context_parts)
+
     prompt = retriever.build_prompt(
         query,
-        selected_result["text"],
+        generation_context,
     )
 
     generated_answer = llm.generate(prompt)
-
     print("Generated answer:", generated_answer)
 
-    answer_correct = is_answer_correct(
+    # 4. 分别检查证据中是否存在关键事实、
+    #    以及最终回答是否包含这些事实
+    evidence_supported = is_answer_correct(
+        generation_context,
+        data["expected_facts"],
+    )
+
+    answer_has_facts = is_answer_correct(
         generated_answer,
         data["expected_facts"],
+    )
+
+    answer_correct = evidence_supported and answer_has_facts
+
+    print(
+        "Expected facts present in evidence:",
+        "PASS" if evidence_supported else "FAIL",
+    )
+
+    print(
+        "Answer contains expected facts:",
+        "PASS" if answer_has_facts else "FAIL",
     )
 
     print(
@@ -176,6 +214,7 @@ for data in evaluation_data:
 
     if answer_correct:
         generation_correct += 1
+
 
     # evaluated_count += 1
 

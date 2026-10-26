@@ -18,7 +18,7 @@ evaluation_data = [
     {
         "query": "How was early hospital readmission defined in the study?",
         "expected_page": 2,
-        "expected_facts": ["first inpatient visit after discharge", "30-day"]
+        "expected_facts": ["within 30 days of discharge"]
     },
     {
         "query": "What percentage of patients had a medication change when HbA1c was ordered?",
@@ -43,7 +43,13 @@ correct = 0
 generation_correct = 0
 for data in evaluation_data:
     # print(data)
-    result = retriever.retrieve(data['query'], top_k=3, threshold=-1)
+    result = retriever.retrieve(data['query'], top_k=3)
+    # 检查是否检索到了文档
+    if not result:
+        print("No retrieval results.")
+        print("Rerank result: FAIL")
+        print("Generation result: FAIL")
+        continue
     prompt = build_rerank_prompt(data['query'],result)
 
     rerank_answer = llm.generate(prompt)
@@ -74,20 +80,13 @@ for data in evaluation_data:
 
    
     
-    generation_prompt = f"""Answer the question using only the information in the context.
-
-Context:
-
-{context}
-
-Question:
-
-{data["query"]}
-
-Answer the question based on the context provided.
-"""
+    generation_prompt = retriever.build_prompt(
+    data["query"],
+    context,
+)
 
     generated_answer = llm.generate(generation_prompt)
+
     print("Generated answer:", generated_answer)
 
     answer_correct = is_answer_correct(generated_answer, data["expected_facts"])

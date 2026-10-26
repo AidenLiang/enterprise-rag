@@ -73,7 +73,8 @@ Context:
 {context}
 
 Question: 
-{query}"""
+{query}
+Answer the question based on the context provided."""
 
 
 

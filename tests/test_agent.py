@@ -1,8 +1,9 @@
 
 import unittest
 from unittest.mock import Mock, patch
+from app.config import TOP_K
+from app.agent.agent import run_agent, merge_results
 
-from app.agent.agent import run_agent
 
 
 class TestRunAgent(unittest.TestCase):
@@ -47,12 +48,14 @@ class TestRunAgent(unittest.TestCase):
                 query,
                 fake_retriever,
                 fake_llm
+
             )
 
             # 4. Check tool calls
             mock_retrieve.assert_called_once_with(
                 fake_retriever,
-                query
+                query,
+                top_k=TOP_K
             )
 
             mock_assess.assert_called_once_with(
@@ -149,7 +152,10 @@ class TestRunAgent(unittest.TestCase):
             self.assertTrue(result["success"])
             self.assertEqual(result["attempts"], 2)
             self.assertEqual(result["final_query"], rewritten_query)
-            self.assertEqual(result["results"], second_results)
+            self.assertEqual(
+                    result["results"],
+                    first_results + second_results
+                )
 
 
     def test_stops_when_retries_are_exhausted(self):
@@ -199,10 +205,100 @@ class TestRunAgent(unittest.TestCase):
             self.assertEqual(mock_assess.call_count, 2)
             mock_rewrite.assert_called_once()
 
+            self.assertEqual(
+                    result["results"],
+                    first_results + second_results
+                )
         self.assertFalse(result["success"])
         self.assertEqual(result["attempts"], 2)
         self.assertEqual(result["final_query"], rewritten_query)
-        self.assertEqual(result["results"], second_results)
+        self.assertEqual(
+                    result["results"],
+                    first_results + second_results
+                )
+
+class TestMergeResults(unittest.TestCase):
+
+    def test_merges_new_results_in_order(self):
+        first_results = [
+            {
+                "text": "Document A",
+                "metadata": {
+                    "source": "paper.pdf",
+                    "page": 1,
+                    "chunk": 1
+                },
+                "score": 0.90
+            }
+        ]
+
+        second_results = [
+            {
+                "text": "Document B",
+                "metadata": {
+                    "source": "paper.pdf",
+                    "page": 2,
+                    "chunk": 1
+                },
+                "score": 0.80
+            }
+        ]
+
+        merged = merge_results(first_results, second_results)
+
+        expected = first_results + second_results
+
+        self.assertEqual(merged, expected)
+
+    def test_removes_duplicate_chunks(self):
+        first_results = [
+            {
+                "text": "Document A",
+                "metadata": {
+                    "source": "paper.pdf",
+                    "page": 1,
+                    "chunk": 1
+                },
+                "score": 0.90
+            },
+            {
+                "text": "Document B",
+                "metadata": {
+                    "source": "paper.pdf",
+                    "page": 2,
+                    "chunk": 3
+                },
+                "score": 0.80
+            }
+        ]
+
+        second_results = [
+            {
+                "text": "Document B updated",
+                "metadata": {
+                    "source": "paper.pdf",
+                    "page": 2,
+                    "chunk": 3
+                },
+                "score": 0.95
+            },
+            {
+                "text": "Document C",
+                "metadata": {
+                    "source": "paper.pdf",
+                    "page": 2,
+                    "chunk": 4
+                },
+                "score": 0.75
+            }
+        ]
+
+        merged = merge_results(first_results, second_results)
+
+        expected = first_results + [second_results[1]]
+
+        self.assertEqual(merged, expected)
+        self.assertEqual(len(merged), 3)
 
 if __name__ == "__main__":
     unittest.main()

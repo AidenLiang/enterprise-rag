@@ -6,6 +6,7 @@ from fastapi import FastAPI, Request, HTTPException
 from ollama import RequestError, ResponseError
 from pydantic import BaseModel, Field
 
+from app.logging_config import configure_logging
 from app.rag import RAG
 from app.config import TOP_K
 
@@ -34,6 +35,7 @@ class AskResponse(BaseModel):
 # 3. Initialize RAG when the server starts
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    configure_logging()
     app.state.rag = RAG()
     yield
 
@@ -57,6 +59,8 @@ def health_check():
 def ask_question(payload: AskRequest, request: Request):
 
     rag = request.app.state.rag
+
+    logger.info("Received /ask request (top_k=%s)", payload.top_k)
 
     try:
         answer, source_result = rag.ask(
@@ -100,6 +104,8 @@ def ask_question(payload: AskRequest, request: Request):
                     selected=(i == 0),
                 )
             )
+
+    logger.info("Completed /ask request (source_count=%d)", len(sources))
 
     return AskResponse(
         answer=answer,

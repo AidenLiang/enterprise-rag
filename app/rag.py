@@ -1,3 +1,6 @@
+import logging
+
+from app.logging_config import configure_logging
 from app.retrieval.retriever import Retriever
 from app.generation.llm import LLM
 from app.reranking.reranker import (
@@ -6,6 +9,8 @@ from app.reranking.reranker import (
 )
 from app.config import TOP_K
 from app.agent.agent import run_agent
+
+logger = logging.getLogger(__name__)
 
 class RAG:
     def __init__(self):
@@ -28,8 +33,8 @@ class RAG:
         # 2. Use cumulative results from all retrieval attempts
         results = agent_result["results"]
 
-        print("Agent success:", agent_result["success"])
-        print("Using cumulative retrieval results.")
+        logger.info("Agent success: %s", agent_result["success"])
+        logger.info("Using cumulative retrieval results.")
 
 
         # 3. Stop only if no results are available
@@ -42,16 +47,14 @@ class RAG:
 
         rerank_prompt = build_rerank_prompt(query, results)
         rerank_answer = self.llm.generate(rerank_prompt)
-        print("Reranker answer:", repr(rerank_answer))
+        logger.info("Reranker answer: %r", rerank_answer)
 
         index = parse_rerank_index(rerank_answer, len(results))
         if index is None:
-            print("Warning: invalid reranker output. Using top retrieval result.")
+            logger.warning("Invalid reranker output. Using top retrieval result.")
             index = 0
         selected_result = results[index]
-        print("Selected index:", index)
-        print("Selected page:",  selected_result["metadata"]["page"])
-        print("Selected chunk:",  selected_result["metadata"]["chunk"])
+        logger.info("Selected candidate: index=%s, page=%s, chunk=%s", index, selected_result["metadata"]["page"], selected_result["metadata"]["chunk"])
 
         selected_result = results[index]
 
@@ -90,6 +93,7 @@ class RAG:
 
 
 if __name__ == "__main__":
+    configure_logging()
 
 
     query = "What was the readmission rate for patients who had an HbA1c measurement compared with those who did not?"

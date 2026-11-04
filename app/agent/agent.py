@@ -1,10 +1,14 @@
 
+import logging
+
 from app.agent.tools import (
     retrieve_documents,
     rewrite_query,
     assess_evidence,
 )
 from app.config import TOP_K
+
+logger = logging.getLogger(__name__)
 
 def merge_results(existing_results, new_results):
     merged = list(existing_results)
@@ -55,6 +59,8 @@ def run_agent(query, retriever, llm, max_retries=1, top_k = TOP_K):
             current_query,
             top_k=top_k
         )
+        logger.info("Agent attempt %d/%d retrieved %d chunks", attempt + 1, max_retries + 1, len(results))
+
         if attempt == 0:
             initial_results = results
         
@@ -67,6 +73,8 @@ def run_agent(query, retriever, llm, max_retries=1, top_k = TOP_K):
             all_results
         )
 
+        logger.info("Evidence assessment: sufficient=%s, cumulative_results=%d", assessment["sufficient"], len(all_results))
+
         # 3. Record this attempt for debugging
         history.append({
             "attempt": attempt + 1,
@@ -78,6 +86,7 @@ def run_agent(query, retriever, llm, max_retries=1, top_k = TOP_K):
 
         # 4. Stop if evidence is sufficient
         if assessment["sufficient"]:
+            logger.info("Evidence sufficient after %d attempt(s)", len(history))
             return {
                 "success": True,
                 "original_query": query,
@@ -94,6 +103,7 @@ def run_agent(query, retriever, llm, max_retries=1, top_k = TOP_K):
             break
 
         # 6. Rewrite the query using the feedback
+        logger.info("Evidence insufficient; rewriting query")
         current_query = rewrite_query(
             llm,
             current_query,
@@ -101,6 +111,7 @@ def run_agent(query, retriever, llm, max_retries=1, top_k = TOP_K):
         )
 
     # 7. Return failure if evidence remains insufficient
+    logger.warning("Evidence insufficient after %d attempt(s)", len(history))
     return {
         "success": False,
         "original_query": query,

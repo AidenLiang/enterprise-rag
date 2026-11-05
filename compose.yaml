@@ -1,0 +1,21 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    image: enterprise-rag:day3
+
+    container_name: enterprise-rag-api
+
+    ports:
+      - "8000:8000"
+
+    environment:
+      OLLAMA_HOST: "http://host.docker.internal:11434"
+      TOP_K: "3"
+      RETRIEVAL_THRESHOLD: "0.5"
+      LLM_MODEL: "llama3.2:3b"
+      EMBEDDING_MODEL: "all-MiniLM-L6-v2"
+
+    restart: unless-stopped

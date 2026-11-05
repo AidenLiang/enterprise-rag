@@ -1,0 +1,13 @@
+.venv/
+venv/
+.git/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.DS_Store
+.env
+.env.*
+tests/
+docs/
+data/raw/
+day6_results.txt
